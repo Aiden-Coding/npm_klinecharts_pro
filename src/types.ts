@@ -57,6 +57,7 @@ export interface ChartProOptions {
   subIndicators?: string[]
   datafeed: Datafeed
   onDrawEnd:Function
+  onDrawStart:Function
 }
 
 export interface ChartPro {

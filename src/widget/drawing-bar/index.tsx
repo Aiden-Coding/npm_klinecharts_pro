@@ -35,6 +35,7 @@ export interface DrawingBarProps {
   onVisibleChange: (visible: boolean) => void;
   onRemoveClick: (groupId: string) => void;
   onDrawEnd: (event: any) => void;
+  onDrawStart: (event: any) => void;
 }
 
 const GROUP_ID = "drawing_tools";
@@ -115,6 +116,10 @@ const DrawingBar: Component<DrawingBarProps> = (props) => {
                 mode: mode() as OverlayMode,
                 onDrawEnd: (event) => {
                   props.onDrawEnd(event);
+                  return true;
+                },
+                onDrawStart: (event) => {
+                  props.onDrawStart(event);
                   return true;
                 },
               });

@@ -732,6 +732,9 @@ const ChartProComponent: Component<ChartProComponentProps> = (props) => {
             onDrawEnd={(event) => {
               props.onDrawEnd(event);
             }}
+            onDrawStart={(event) => {
+              props.onDrawStart(event);
+            }}
           />
         </Show>
         <div

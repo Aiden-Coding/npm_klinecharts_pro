@@ -48,6 +48,7 @@ export default class KLineChartPro implements ChartPro {
             this._chartApi = chart;
           }}
           onDrawEnd={options.onDrawEnd}
+          onDrawStart={options.onDrawStart}
           styles={options.styles ?? {}}
           watermark={options.watermark ?? (Logo as Node)}
           theme={options.theme ?? "light"}
