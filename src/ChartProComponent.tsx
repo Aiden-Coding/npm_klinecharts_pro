@@ -36,6 +36,8 @@ import {
   Indicator,
   DomPosition,
   FormatDateType,
+  OverlayCreate,
+  CandleType,
 } from "klinecharts";
 
 import lodashSet from "lodash/set";
@@ -136,6 +138,10 @@ const ChartProComponent: Component<ChartProComponentProps> = (props) => {
   const [drawingBarVisible, setDrawingBarVisible] = createSignal(
     props.drawingBarVisible
   );
+  const [selectedOverlayId, setSelectedOverlayId] = createSignal(
+    props.selectedOverlayId
+  );
+  const [overlayIds, setOverlayIds] = createSignal(props.overlayIds);
 
   const [symbolSearchModalVisible, setSymbolSearchModalVisible] =
     createSignal(false);
@@ -169,7 +175,95 @@ const ChartProComponent: Component<ChartProComponentProps> = (props) => {
     setPeriod,
     getPeriod: () => period(),
     getChart: () => widget,
+    createOverlay: (
+      value: string | OverlayCreate | Array<string | OverlayCreate>,
+      paneId?: string
+    ) => {
+      return createOverlayOverWrite(value, paneId);
+    },
+    setOverlayIds: (ids: string[]) => {
+      setOverlayIds(ids);
+    },
+    getOverlayIds: () => overlayIds(),
   });
+  const createOverlayOverWrite = (
+    value: string | OverlayCreate | Array<string | OverlayCreate>,
+    paneId?: string
+  ) => {
+    if (widget == null) {
+      return "";
+    }
+    if (isOverlayCreate(value)) {
+      value.onDrawEnd = (event) => {
+        if (props.onDrawEnd) {
+          props.onDrawEnd(event);
+        }
+
+        console.log("createOverlayOverWrite");
+        console.log(event.overlay.id);
+        const newArray = [...overlayIds(), event.overlay.id];
+        setOverlayIds(newArray);
+        console.log(overlayIds());
+        return true;
+      };
+      value.onDrawStart = (event) => {
+        props.onDrawStart(event);
+        return true;
+      };
+      value.onSelected = (event) => {
+        setSelectedOverlayId(event.overlay.id);
+        return true;
+      };
+      fillExtendData(value);
+    } else if (Array.isArray(value)) {
+      if (isOverlayCreateArray(value)) {
+        value.forEach((item) => {
+          item.onDrawEnd = (event) => {
+            props.onDrawEnd(event);
+            console.log("createOverlayOverWrite");
+            console.log(event.overlay.id);
+            const newArray = [...overlayIds(), event.overlay.id];
+            setOverlayIds(newArray);
+            console.log(overlayIds());
+            return true;
+          };
+          item.onDrawStart = (event) => {
+            props.onDrawStart(event);
+            return true;
+          };
+          item.onSelected = (event) => {
+            setSelectedOverlayId(event.overlay.id);
+            return true;
+          };
+          fillExtendData(item);
+        });
+      }
+    }
+    let ret = widget.createOverlay(value, paneId);
+    return ret;
+  };
+  function isStringArray(arr: any[]): arr is string[] {
+    return arr.every((item) => typeof item === "string");
+  }
+  function isOverlayCreateArray(arr: any[]): arr is OverlayCreate[] {
+    return arr.every((item) => isOverlayCreate(item));
+  }
+  const isOverlayCreate = (obj: any): obj is OverlayCreate => {
+    return obj?.name !== undefined;
+  };
+  const isString = (obj: any): obj is string => {
+    return obj !== undefined;
+  };
+
+  const isNullOrUndefind = (obj: any): boolean => {
+    return obj == null || obj == undefined;
+  };
+  function fillExtendData(x: OverlayCreate) {
+    x.extendData = {
+      symbol: symbol(),
+      period: period(),
+    };
+  }
 
   const documentResize = () => {
     widget?.resize();
@@ -179,6 +273,11 @@ const ChartProComponent: Component<ChartProComponentProps> = (props) => {
     let to = toTimestamp;
     let from = to;
     switch (period.timespan) {
+      case "second": {
+        to = to - (to % (60 * 1000));
+        from = to - count * period.multiplier * 60 * 1000;
+        break;
+      }
       case "minute": {
         to = to - (to % (60 * 1000));
         from = to - count * period.multiplier * 60 * 1000;
@@ -191,7 +290,11 @@ const ChartProComponent: Component<ChartProComponentProps> = (props) => {
       }
       case "day": {
         to = to - (to % (60 * 60 * 1000));
-        from = to - count * period.multiplier * 24 * 60 * 60 * 1000;
+        from = getStartOfPreviousDays(
+          count * period.multiplier,
+          new Date(to)
+        ).getTime();
+        // from = to - count * period.multiplier * 24 * 60 * 60 * 1000;
         break;
       }
       case "week": {
@@ -199,13 +302,16 @@ const ChartProComponent: Component<ChartProComponentProps> = (props) => {
         const week = date.getDay();
         const dif = week === 0 ? 6 : week - 1;
         to = to - dif * 60 * 60 * 24;
-        const newDate = new Date(to);
-        to = new Date(
-          `${newDate.getFullYear()}-${
-            newDate.getMonth() + 1
-          }-${newDate.getDate()}`
-        ).getTime();
-        from = count * period.multiplier * 7 * 24 * 60 * 60 * 1000;
+        const fiveWeeksAgoStartDate = new Date(
+          to - count * period.multiplier * 7 * 24 * 60 * 60 * 1000
+        );
+        from = fiveWeeksAgoStartDate.getTime();
+        // to = new Date(
+        //   `${newDate.getFullYear()}-${
+        //     newDate.getMonth() + 1
+        //   }-${newDate.getDate()}`
+        // ).getTime();
+        // from = count * period.multiplier * 7 * 24 * 60 * 60 * 1000;
         break;
       }
       case "month": {
@@ -213,26 +319,45 @@ const ChartProComponent: Component<ChartProComponentProps> = (props) => {
         const year = date.getFullYear();
         const month = date.getMonth() + 1;
         to = new Date(`${year}-${month}-01`).getTime();
-        from = count * period.multiplier * 30 * 24 * 60 * 60 * 1000;
+        from = to - count * period.multiplier * 30 * 24 * 60 * 60 * 1000;
         const fromDate = new Date(from);
-        from = new Date(
-          `${fromDate.getFullYear()}-${fromDate.getMonth() + 1}-01`
-        ).getTime();
+        from = fromDate.getTime();
+
+        // from = new Date(
+        //   `${fromDate.getFullYear()}-${fromDate.getMonth() + 1}-01`
+        // ).getTime();
         break;
       }
       case "year": {
         const date = new Date(to);
         const year = date.getFullYear();
         to = new Date(`${year}-01-01`).getTime();
-        from = count * period.multiplier * 365 * 24 * 60 * 60 * 1000;
+        from = to - count * period.multiplier * 365 * 24 * 60 * 60 * 1000;
         const fromDate = new Date(from);
-        from = new Date(`${fromDate.getFullYear()}-01-01`).getTime();
+        // from = new Date(`${fromDate.getFullYear()}-01-01`).getTime();
+
+        from = fromDate.getTime();
         break;
       }
     }
     return [from, to];
   };
+  // 函数：获取前n天的开始时间（跳过周六和周日）
+  function getStartOfPreviousDays(n: number, startDate: Date) {
+    for (let i = 0; i < n; i++) {
+      startDate.setDate(startDate.getDate() - 1); // 递减日期
 
+      // 跳过周六和周日
+      const dayOfWeek = startDate.getDay();
+      if (dayOfWeek === 6 || dayOfWeek === 0) {
+        startDate.setDate(startDate.getDate() - 1); // 再次递减日期（跳过周六和周日）
+      }
+    }
+
+    startDate.setHours(0, 0, 0, 0); // 设置时间为当天的开始时间（00:00:00）
+
+    return startDate;
+  }
   onMount(() => {
     window.addEventListener("resize", documentResize);
     widget = init(widgetRef!, {
@@ -333,6 +458,7 @@ const ChartProComponent: Component<ChartProComponentProps> = (props) => {
       loading = true;
       const get = async () => {
         const p = period();
+
         const [to] = adjustFromTo(p, timestamp!, 1);
         const [from] = adjustFromTo(p, to, 500);
         const kLineDataList = await props.datafeed.getHistoryKLineData(
@@ -416,16 +542,35 @@ const ChartProComponent: Component<ChartProComponentProps> = (props) => {
       s?.volumePrecision ?? 0
     );
   });
-
+  const onPeriodChange = (value: Period) => {
+    setPeriod(value);
+    console.log(overlayIds());
+    overlayIds().forEach((item, index) => {
+      widget?.removeOverlay({ id: item });
+    });
+    setOverlayIds([]);
+  };
   createEffect((prev?: PrevSymbolPeriod) => {
     if (!loading) {
       if (prev) {
         props.datafeed.unsubscribe(prev.symbol, prev.period);
       }
+
       const s = symbol();
       const p = period();
       loading = true;
       setLoadingVisible(true);
+      if (
+        widget &&
+        p.candleType &&
+        widget.getStyles().candle &&
+        widget.getStyles().candle.type &&
+        p.candleType != widget.getStyles().candle.type
+      ) {
+        let stls = widget.getStyles();
+        stls.candle.type = p.candleType;
+        widget.setStyles(stls);
+      }
       const get = async () => {
         const [from, to] = adjustFromTo(p, new Date().getTime(), 500);
         const kLineDataList = await props.datafeed.getHistoryKLineData(
@@ -442,6 +587,9 @@ const ChartProComponent: Component<ChartProComponentProps> = (props) => {
         setLoadingVisible(false);
       };
       get();
+      if (props.onSymbolOrPeriodChange) {
+        props.onSymbolOrPeriodChange();
+      }
       return { symbol: s, period: p };
     }
     return prev;
@@ -547,7 +695,19 @@ const ChartProComponent: Component<ChartProComponentProps> = (props) => {
 
   createEffect(() => {
     if (styles()) {
-      widget?.setStyles(styles());
+      let per = period();
+      if (per.candleType) {
+        let stls = styles();
+        if (stls.candle) {
+          let at = stls.candle;
+          if (at) {
+            at.type = per.candleType;
+          }
+        }
+        widget?.setStyles(stls);
+      } else {
+        widget?.setStyles(styles());
+      }
       setWidgetDefaultStyles(lodashClone(widget!.getStyles()));
     }
   });
@@ -686,7 +846,9 @@ const ChartProComponent: Component<ChartProComponentProps> = (props) => {
         onSymbolClick={() => {
           setSymbolSearchModalVisible(!symbolSearchModalVisible());
         }}
-        onPeriodChange={setPeriod}
+        onPeriodChange={(v)=>{
+          onPeriodChange(v)
+        }}
         onIndicatorClick={() => {
           setIndicatorModalVisible((visible) => !visible);
         }}
@@ -715,7 +877,7 @@ const ChartProComponent: Component<ChartProComponentProps> = (props) => {
           <DrawingBar
             locale={props.locale}
             onDrawingItemClick={(overlay) => {
-              widget?.createOverlay(overlay);
+              createOverlayOverWrite(overlay);
             }}
             onModeChange={(mode) => {
               widget?.overrideOverlay({ mode: mode as OverlayMode });
@@ -726,14 +888,22 @@ const ChartProComponent: Component<ChartProComponentProps> = (props) => {
             onVisibleChange={(visible) => {
               widget?.overrideOverlay({ visible });
             }}
-            onRemoveClick={(groupId) => {
-              widget?.removeOverlay({ groupId });
-            }}
-            onDrawEnd={(event) => {
-              props.onDrawEnd(event);
-            }}
-            onDrawStart={(event) => {
-              props.onDrawStart(event);
+            onRemoveClick={() => {
+              console.log("onRemoveClick()");
+              if (props.onRemoveOverlayById) {
+                props.onRemoveOverlayById(selectedOverlayId());
+              }
+              console.log(overlayIds());
+              console.log(selectedOverlayId());
+              console.log("onRemoveClick()");
+              if (selectedOverlayId()) {
+                widget?.removeOverlay({ id: selectedOverlayId() });
+                overlayIds().forEach((item, index) => {
+                  if (item === selectedOverlayId()) {
+                    overlayIds().splice(index, 1);
+                  }
+                });
+              }
             }}
           />
         </Show>

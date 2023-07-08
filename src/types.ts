@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-import { KLineData, Styles, DeepPartial,Nullable, Chart } from 'klinecharts'
+import {KLineData, Styles, DeepPartial, Nullable, Chart, OverlayCreate, CandleStyle, CandleType} from 'klinecharts'
 
 export interface SymbolInfo {
   ticker: string
@@ -31,6 +31,7 @@ export interface Period {
   multiplier: number
   timespan: string
   text: string
+  candleType?: CandleType
 }
 
 export type DatafeedSubscribeCallback = (data: KLineData) => void
@@ -58,6 +59,10 @@ export interface ChartProOptions {
   datafeed: Datafeed
   onDrawEnd:Function
   onDrawStart:Function
+  onRemoveOverlayById:Function
+  onSymbolOrPeriodChange:Function
+  overlayIds?:string[]
+  selectedOverlayId?:string
 }
 
 export interface ChartPro {
@@ -74,4 +79,8 @@ export interface ChartPro {
   setPeriod(period: Period): void
   getPeriod(): Period
   getChart(): Nullable<Chart>
+  createOverlay(value: string | OverlayCreate | Array<string | OverlayCreate>, paneId?: string): Nullable<string> | Array<Nullable<string>>;
+  setOverlayIds(ids:string[]):void
+  getOverlayIds():string[]
+
 }

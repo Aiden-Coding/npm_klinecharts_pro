@@ -14,7 +14,14 @@
 
 import { render } from "solid-js/web";
 
-import { utils, Nullable, DeepPartial, Styles, Chart } from "klinecharts";
+import {
+  utils,
+  Nullable,
+  DeepPartial,
+  Styles,
+  Chart,
+  OverlayCreate,
+} from "klinecharts";
 
 import ChartProComponent from "./ChartProComponent";
 
@@ -49,6 +56,7 @@ export default class KLineChartPro implements ChartPro {
           }}
           onDrawEnd={options.onDrawEnd}
           onDrawStart={options.onDrawStart}
+          onSymbolOrPeriodChange={options.onSymbolOrPeriodChange}
           styles={options.styles ?? {}}
           watermark={options.watermark ?? (Logo as Node)}
           theme={options.theme ?? "light"}
@@ -74,6 +82,9 @@ export default class KLineChartPro implements ChartPro {
           mainIndicators={options.mainIndicators ?? ["MA"]}
           subIndicators={options.subIndicators ?? ["VOL"]}
           datafeed={options.datafeed}
+          overlayIds={options.overlayIds ?? []}
+          selectedOverlayId={options.selectedOverlayId ?? "undefined"}
+          onRemoveOverlayById = {options.onRemoveOverlayById}
         />
       ),
       this._container
@@ -135,5 +146,19 @@ export default class KLineChartPro implements ChartPro {
 
   getChart(): Nullable<Chart> {
     return this._chartApi!.getChart();
+  }
+
+  createOverlay(
+    value: string | OverlayCreate | Array<string | OverlayCreate>,
+    paneId?: string
+  ): Nullable<string> | Array<Nullable<string>> {
+    return this._chartApi!.createOverlay(value, paneId);
+  }
+
+  setOverlayIds(ids: string[]) {
+    this._chartApi!.setOverlayIds(ids);
+  }
+  getOverlayIds(): string[] {
+    return this._chartApi!.getOverlayIds();
   }
 }
