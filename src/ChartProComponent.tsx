@@ -549,6 +549,9 @@ const ChartProComponent: Component<ChartProComponentProps> = (props) => {
       widget?.removeOverlay({ id: item });
     });
     setOverlayIds([]);
+    if (props.onSymbolOrPeriodChange) {
+        props.onSymbolOrPeriodChange();
+      }
   };
   createEffect((prev?: PrevSymbolPeriod) => {
     if (!loading) {
@@ -587,9 +590,7 @@ const ChartProComponent: Component<ChartProComponentProps> = (props) => {
         setLoadingVisible(false);
       };
       get();
-      if (props.onSymbolOrPeriodChange) {
-        props.onSymbolOrPeriodChange();
-      }
+
       return { symbol: s, period: p };
     }
     return prev;
