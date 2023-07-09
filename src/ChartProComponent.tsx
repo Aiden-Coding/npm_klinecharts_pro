@@ -732,7 +732,7 @@ const ChartProComponent: Component<ChartProComponentProps> = (props) => {
           locale={props.locale}
           datafeed={props.datafeed}
           onSymbolSelected={(symbol) => {
-            setSymbol(symbol);
+            onSymbolChange(symbol)
           }}
           onClose={() => {
             setSymbolSearchModalVisible(false);
