@@ -553,6 +553,17 @@ const ChartProComponent: Component<ChartProComponentProps> = (props) => {
         props.onSymbolOrPeriodChange();
       }
   };
+  const onSymbolChange= (value: SymbolInfo) => {
+    setSymbol(value);
+    console.log(overlayIds());
+    overlayIds().forEach((item, index) => {
+      widget?.removeOverlay({ id: item });
+    });
+    setOverlayIds([]);
+    if (props.onSymbolOrPeriodChange) {
+        props.onSymbolOrPeriodChange();
+      }
+  };
   createEffect((prev?: PrevSymbolPeriod) => {
     if (!loading) {
       if (prev) {
